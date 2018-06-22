@@ -2,3 +2,5 @@
 !.gitignore
 !/ProxyIP/
 !/pwscrapy/
+/pwscrapy/__pycache__/
+/pwscrapy/spiders/__pycache__/

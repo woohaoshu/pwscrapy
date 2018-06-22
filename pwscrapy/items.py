@@ -29,10 +29,11 @@ class PwMashupScrapyItem(scrapy.Item):
     mashup_desc = scrapy.Field()
 
 class PwNewsScrapyItem(scrapy.Item):
-    news_name = scrapy.Field()
     news_pw_url = scrapy.Field()
-    news_date = scrapy.Field()
-    news_author = scrapy.Field()
+    news_name = scrapy.Field()
     news_article_type = scrapy.Field()
+    news_author = scrapy.Field()
+    news_abstract = scrapy.Field()
+    news_date = scrapy.Field()
     news_category = scrapy.Field()
     news_content = scrapy.Field()

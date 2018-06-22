@@ -20,7 +20,7 @@ def getProxyList(targeturl="http://www.xicidaili.com/nn/"):
     requestHeader = {'User-Agent': "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36"}
     
     
-    for page in range(1, 3):
+    for page in range(1, 2):
         url = targeturl + str(page)
         #print url
         request = urllib.request.Request(url, headers=requestHeader)
@@ -78,24 +78,25 @@ def verifyProxyList():
                 conn.request(method = 'GET', url = myurl, headers = requestHeader )
                 res = conn.getresponse()
                 lock.acquire()
-                print("+++Success:" + ip + ":" + port)
+                # print("+++Success:" + ip + ":" + port)
                 # outFile.write(ll + "\n")
                 https_outFile.write(ip + ":" + port + "\n")
                 lock.release()
             except:
-                print("---Failure:" + ip + ":" + port)
-        else:
-            try:
-                conn = http.client.HTTPConnection(ip, port, timeout=5.0)
-                conn.request(method = 'GET', url = myurl, headers = requestHeader )
-                res = conn.getresponse()
-                lock.acquire()
-                print("+++Success:" + ip + ":" + port)
-                # outFile.write(ll + "\n")
-                http_outFile.write(ip + ":" + port + "\n")
-                lock.release()
-            except:
-                print("---Failure:" + ip + ":" + port)
+                # print("---Failure:" + ip + ":" + port)
+                pass
+        # else:
+        #     try:
+        #         conn = http.client.HTTPConnection(ip, port, timeout=5.0)
+        #         conn.request(method = 'GET', url = myurl, headers = requestHeader )
+        #         res = conn.getresponse()
+        #         lock.acquire()
+        #         print("+++Success:" + ip + ":" + port)
+        #         # outFile.write(ll + "\n")
+        #         http_outFile.write(ip + ":" + port + "\n")
+        #         lock.release()
+        #     except:
+        #         print("---Failure:" + ip + ":" + port)
         
     
 if __name__ == '__main__':
@@ -111,7 +112,7 @@ if __name__ == '__main__':
     # proxynum = getProxyList("http://www.xicidaili.com/wt/")
     # print(u"国外透明：" + str(proxynum))
 
-    print(u"\n验证代理的有效性：")
+    # print(u"\n验证代理的有效性：")
     
     all_thread = []
     for i in range(30):

@@ -16,6 +16,7 @@ import time
 import _thread
 import threading
 import codecs
+import os
 
 
 class PwscrapySpiderMiddleware(object):
@@ -137,48 +138,24 @@ class ProxyMiddleware(object):
     设置Proxy
     '''
 
-    def __init__(self):
-        self.ip = []
-        self.inFile = codecs.open('ProxyIP/proxy.txt', 'r+', encoding='utf8')
-        self.https_outFile = codecs.open('ProxyIP/https_verified.txt', 'r+', encoding='utf8')
-        self.lock = threading.Lock()
-        print(u"国内透明：" + str(self.getProxyList()))
-        self.inFile.close()
-        self.inFile = codecs.open('ProxyIP/proxy.txt', 'r+', encoding='utf8')
-        print(u"\n验证代理的有效性：")
-        all_thread = []
-        for i in range(10):
-            t = threading.Thread(target=self.verifyProxyList)
-            all_thread.append(t)
-            t.start()
-        for t in all_thread:
-            t.join()
-        self.https_outFile.close()
-        self.https_outFile = codecs.open('ProxyIP/https_verified.txt', 'r+', encoding='utf8')        
-        for line in self.https_outFile.readlines():
-            self.ip.append(line.strip('\n'))
-        self.inFile.close()
-        self.https_outFile.close()
-        print("爬取到的ip列表："+",".join(self.ip))
-        # 3.开启一个线程，动态更新ip pool
+    def __init__(self, ip):
+        self.ip = ip
+        # 开启一个线程，动态更新ip pool
         _thread.start_new_thread(self.proxyThread, (180, ))
         print("自动更新代理线程已开启")
 
-    # def __init__(self, ip):
-    #     self.ip = ip
-
-    # @classmethod
-    # def from_crawler(cls, crawler):
+    @classmethod
+    def from_crawler(cls, crawler):
         # 1.从配置文件中读ip pool
         # return cls(ip=crawler.settings.get('PROXIES'))
 
         # 2.从文件中读ip pool
-        # proxies = []
-        # with codecs.open('ProxyIP/https_verified.txt' , 'r', encoding='utf8') as f:
-        #     for line in f.readlines():
-        #         proxies.append(line.strip('\n'))
-        # print(proxies)
-        # return cls(ip = proxies)
+        proxies = []
+        with codecs.open('ProxyIP/https_verified.txt' , 'r', encoding='utf8') as f:
+            for line in f.readlines():
+                proxies.append(line.strip('\n'))
+        print(proxies)
+        return cls(ip = proxies)
 
 
     def process_request(self, request, spider):
@@ -188,7 +165,7 @@ class ProxyMiddleware(object):
 
     def process_response(self, request, response, spider):
         if response.status != 200:
-            spider.logger.info("||||||||||||||||||||||")
+            spider.logger.info("||||||||||")
             ip = random.choice(self.ip)
             spider.logger.info("++++++++++++++++++++++++++++Current IP: "+ip+"++++++++++++++++++++++++++++")
             request.meta['proxy'] = ip
@@ -197,80 +174,11 @@ class ProxyMiddleware(object):
 
     def proxyThread(self, delay):
         while True:
-            self.inFile = codecs.open('ProxyIP/proxy.txt', 'r+', encoding='utf8')
-            self.https_outFile = codecs.open('ProxyIP/https_verified.txt', 'r+', encoding='utf8')
-            self.lock = threading.Lock()
-            print(u"国内透明：" + str(self.getProxyList()))
-            self.inFile.close()
-            self.inFile = codecs.open('ProxyIP/proxy.txt', 'r+', encoding='utf8')
-            print(u"\n验证代理的有效性：")
-            all_thread = []
-            for i in range(10):
-                t = threading.Thread(target=self.verifyProxyList)
-                all_thread.append(t)
-                t.start()
-            for t in all_thread:
-                t.join()
-            self.https_outFile.close()
-            self.https_outFile = codecs.open('ProxyIP/https_verified.txt', 'r+', encoding='utf8')
-            for line in self.https_outFile.readlines():
-                self.ip.append(line.strip('\n'))
-            self.inFile.close()
-            self.https_outFile.close()
-            print("爬取到的ip列表："+",".join(self.ip))
+            os.system("ProxyIP\\updatepool.bat")
+            proxies = []
+            with codecs.open('ProxyIP/https_verified.txt' , 'r', encoding='utf8') as f:
+                for line in f.readlines():
+                    proxies.append(line.strip('\n'))
+            self.ip = proxies
+            print("IP Pool已更新："+", ".join(self.ip))
             time.sleep(delay)
-
-    def getProxyList(self, targeturl="http://www.xicidaili.com/nt/"):
-        countNum = 0
-        requestHeader = {'User-Agent': "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36"}
-        for page in range(1, 2):
-            url = targeturl + str(page)
-            request = urllib.request.Request(url, headers=requestHeader)
-            html_doc = urllib.request.urlopen(request).read()
-        
-            soup = BeautifulSoup(html_doc, "html.parser")
-            trs = soup.find('table', id='ip_list').find_all('tr')
-            for tr in trs[1:]:
-                tds = tr.find_all('td')
-                if tds[0].find('img') is None :
-                    nation = '未知'
-                    locate = '未知'
-                else:
-                    nation =   tds[0].find('img')['alt'].strip()
-                    locate  =   tds[3].text.strip()
-                ip      =   tds[1].text.strip()
-                port    =   tds[2].text.strip()
-                anony   =   tds[4].text.strip()
-                protocol=   tds[5].text.strip()
-                speed   =   tds[6].find('div')['title'].strip()
-                time    =   tds[8].text.strip()
-                
-                self.inFile.write('%s|%s|%s|%s|%s|%s|%s|%s\n' % (nation, ip, port, locate, anony, protocol,speed, time))
-                countNum += 1
-        return countNum
-
-    def verifyProxyList(self):
-        requestHeader = {'User-Agent': "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36"}
-        myurl = 'https://www.programmableweb.com'
-        while True:
-            self.lock.acquire()
-            ll = self.inFile.readline().strip()
-            self.lock.release()
-            if len(ll) == 0: break
-            line = ll.strip().split('|')
-            protocol= line[5]
-            ip      = line[1]
-            port    = line[2]
-            # print(ip + ":" + port + "\n")
-            if(protocol == "HTTPS"):
-                try:
-                    conn = http.client.HTTPConnection(ip, port, timeout=5.0)
-                    conn.request(method = 'GET', url = myurl, headers = requestHeader )
-                    res = conn.getresponse()
-                    self.lock.acquire()
-                    print("+++Success:" + ip + ":" + port)
-                    self.https_outFile.write(ip + ":" + port + "\n")
-                    self.lock.release()
-                except:
-                    print("---Failure:" + ip + ":" + port)
-        

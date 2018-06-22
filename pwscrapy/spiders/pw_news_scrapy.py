@@ -1,6 +1,7 @@
 # encoding: UTF-8
 import scrapy
 from urllib.parse import urljoin
+import re
 
 from pwscrapy.items import PwNewsScrapyItem
 
@@ -23,9 +24,19 @@ class pwscrapy(scrapy.spiders.Spider):
         total_page_num = response.css('.pager-next a::text').extract()
         self.logger.debug("----------"+str(self.page_count+1)+"/"+total_page_num[0]+"----------")
 
-        for sel in response.xpath("//td[contains(@class,'col-md-3')]/a"):
-            news_pw_url = response.urljoin("".join(sel.xpath("@href").extract())) # response.url会自动提取出当前页面url的主域名
-            yield scrapy.Request(url=news_pw_url, callback=self.parse_news_details, dont_filter=True)
+        for sel in response.css(".view-search-articles-solr>.view-content>.views-row"):
+            item = PwNewsScrapyItem()
+            news_pw_url = response.urljoin("".join(sel.css("h2>a::attr(href)").extract())) # response.url会自动提取出当前页面url的主域名
+            item["news_pw_url"] = news_pw_url
+            item["news_name"] = sel.css("h2>a::text").extract()[0]
+            if len(response.css(".pull-left-wrapper .content-type>a::text").extract()) != 0:
+                item["news_article_type"] = sel.css(".pull-left-wrapper .content-type>a::text").extract()[0]
+            if len(response.css(".pull-left-wrapper .name>a::text").extract()) != 0:
+                item["news_author"] = sel.css(".pull-left-wrapper .name>a::text").extract()[0]
+            if len(response.css(".text>span::text").extract()) != 0:
+                item["news_abstract"] = sel.css(".text>span::text").extract()[0]
+
+            yield scrapy.Request(url=news_pw_url, meta={'item':item}, callback=self.parse_news_details, dont_filter=True)
 
         # 爬取下一页
         if self.page_count < int(total_page_num[0]):
@@ -34,19 +45,14 @@ class pwscrapy(scrapy.spiders.Spider):
             self.page_count += 1
             yield scrapy.Request(next_page, callback=self.parse)
         
-        
-
     def parse_news_details(self, response):
-        self.news_count += 1
-        item = PwNewsScrapyItem()
-
-        item['news_name'] = response.css(".news-summary::attr(id)").extract()[0].split('-')[1]
-        item['news_pw_url'] = response.url
-        item['news_date'] = response.url
-        item['news_author'] = response.url
-        item['news_article_type'] = response.url
-        if len(response.css("").extract()) != 0:
-            item['news_category'] = response.css("").extract()[0]
-        item['news_desc'] = response.css("").extract_first().strip("").strip(" </div>")
-
+        item = response.meta['item']
+        # self.news_count += 1
+        item['news_date'] = response.url.split("/")[-3:]
+        if len(response.css("span[data-str-brand] a::text").extract()) != 0:
+            item['news_category'] = response.css("span[data-str-brand] a::text").extract()
+        if len(response.css("span[data-str-content] .field-item p").extract()) != 0:
+            news_content = " ".join(response.css("span[data-str-content] .field-item p").extract())
+            news_content = re.compile(r'<[^>]+>', re.S).sub('', news_content) # [^>]+ 不是^的任意字符
+            item['news_content'] = news_content
         yield item
