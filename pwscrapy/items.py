@@ -29,6 +29,8 @@ class PwMashupScrapyItem(scrapy.Item):
     mashup_desc = scrapy.Field()
 
 class PwNewsScrapyItem(scrapy.Item):
+    news_page_count = scrapy.Field()
+    news_count = scrapy.Field()
     news_pw_url = scrapy.Field()
     news_name = scrapy.Field()
     news_article_type = scrapy.Field()
