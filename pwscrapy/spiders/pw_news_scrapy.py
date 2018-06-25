@@ -31,20 +31,20 @@ class pwscrapy(scrapy.spiders.Spider):
             item["news_page_count"] = self.page_count
             item["news_pw_url"] = news_pw_url
             item["news_name"] = sel.css("h2>a::text").extract()[0]
-            if len(response.css(".pull-left-wrapper .content-type>a::text").extract()) != 0:
+            if len(sel.css(".pull-left-wrapper .content-type>a::text").extract()) != 0:
                 item["news_article_type"] = sel.css(".pull-left-wrapper .content-type>a::text").extract()[0]
-            if len(response.css(".pull-left-wrapper .name>a::text").extract()) != 0:
+            if len(sel.css(".pull-left-wrapper .name>a::text").extract()) != 0:
                 item["news_author"] = sel.css(".pull-left-wrapper .name>a::text").extract()[0]
-            if len(response.css(".text>span::text").extract()) != 0:
+            if len(sel.css(".text>span::text").extract()) != 0:
                 item["news_abstract"] = sel.css(".text>span::text").extract()[0]
-            yield scrapy.Request(url=news_pw_url, meta={'item':item}, callback=self.parse_news_details, dont_filter=True)
+            yield scrapy.Request(url=news_pw_url, meta={'item':item}, callback=self.parse_news_details, dont_filter=True, priority=1)
 
         # 爬取下一页
         if self.page_count < int(total_page_num[0]):
             next_page = "https://www.programmableweb.com/category/all/news?page=" + str(self.page_count)
             self.log("page_url: %s" % next_page)
             self.page_count += 1
-            yield scrapy.Request(next_page, callback=self.parse)
+            yield scrapy.Request(next_page, callback=self.parse, priority=0)
         
     def parse_news_details(self, response):
         item = response.meta['item']

@@ -79,7 +79,7 @@ ROBOTSTXT_OBEY = True
 # Configure a delay for requests for the same website (default: 0)
 # See https://doc.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 0.8
+DOWNLOAD_DELAY = 1.2
 DOWNLOAD_TIMEOUT = 10
 # The download delay setting will honor only one of:
 #CONCURRENT_REQUESTS_PER_DOMAIN = 16
@@ -133,7 +133,7 @@ DOWNLOADER_MIDDLEWARES = {
 # The initial download delay
 # AUTOTHROTTLE_START_DELAY = 3
 # The maximum download delay to be set in case of high latencies
-# AUTOTHROTTLE_MAX_DELAY = 8
+# AUTOTHROTTLE_MAX_DELAY = 10
 # The average number of requests Scrapy should be sending in parallel to
 # each remote server
 #AUTOTHROTTLE_TARGET_CONCURRENCY = 1.0
@@ -153,10 +153,13 @@ DOWNLOADER_MIDDLEWARES = {
 FEED_EXPORT_ENCODING = 'utf-8'
 
 # 补充，导出类型
-FEED_URI = u'apis.json'  
+FEED_URI = u'news.json'  
 FEED_FORMAT = 'JSON'
 
 # 补充，LOG
 # LOG_FILE = "spider.log"
 # LOG_LEVEL = "DEBUG" # CRITICAL ERROR WARNING INFO DEBUG 
 # LOG_STDOUT = False # 如果为 True，进程所有的标准输出(及错误)将会被重定向到log中。例如，执行 print "hello" ，其将会在Scrapy log中显示
+
+# 补充，爬虫深度
+# DEPTH_LIMIT = 3
