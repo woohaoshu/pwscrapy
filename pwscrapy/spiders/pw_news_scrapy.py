@@ -19,10 +19,12 @@ class pwscrapy(scrapy.spiders.Spider):
     def __init__(self):
         self.page_count = 1
         self.news_count = 0
+        self.total_page_num = -1
 
     def parse(self, response):
-        total_page_num = response.css('.pager-next a::text').extract()
-        self.logger.debug("----------"+str(self.page_count)+"/"+total_page_num[0]+"----------")
+        if self.total_page_num == -1:
+            self.total_page_num = response.css('.pager-next a::text').extract()[0]
+        self.logger.debug("----------"+str(self.page_count)+"/"+str(self.total_page_num)+"----------")
 
         # 爬取目录页信息
         for sel in response.css(".view-search-articles-solr>.view-content>.views-row"):
@@ -40,7 +42,7 @@ class pwscrapy(scrapy.spiders.Spider):
             yield scrapy.Request(url=news_pw_url, meta={'item':item}, callback=self.parse_news_details, dont_filter=True, priority=1)
 
         # 爬取下一页
-        if self.page_count < int(total_page_num[0]):
+        if self.page_count < int(self.total_page_num):
             next_page = "https://www.programmableweb.com/category/all/news?page=" + str(self.page_count)
             self.log("page_url: %s" % next_page)
             self.page_count += 1
