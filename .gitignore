@@ -3,5 +3,6 @@
 !/ProxyIP/
 !/pwscrapy/
 !scrapy.cfg
+!saveMySQL.py
 /pwscrapy/__pycache__/
 /pwscrapy/spiders/__pycache__/
