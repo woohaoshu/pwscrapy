@@ -153,7 +153,7 @@ AUTOTHROTTLE_MAX_DELAY = 10
 FEED_EXPORT_ENCODING = 'utf-8'
 
 # 补充，导出类型
-FEED_URI = u'news.json'  
+FEED_URI = u'categorys.json'  
 FEED_FORMAT = 'JSON'
 
 # 补充，LOG

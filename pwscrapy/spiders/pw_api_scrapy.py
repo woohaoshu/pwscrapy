@@ -36,8 +36,6 @@ class pwscrapy(scrapy.spiders.Spider):
             self.page_count += 1
             yield scrapy.Request(next_page, callback=self.parse, priority=0)
         
-        
-
     def parse_api_details(self, response):
         self.api_count += 1
         item = PwApiScrapyItem()

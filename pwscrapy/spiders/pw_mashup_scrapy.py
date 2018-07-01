@@ -35,8 +35,6 @@ class pwscrapy(scrapy.spiders.Spider):
             self.page_count += 1
             yield scrapy.Request(next_page, callback=self.parse)
         
-        
-
     def parse_mashup_details(self, response):
         self.mashup_count += 1
         item = PwMashupScrapyItem()

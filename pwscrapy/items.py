@@ -39,3 +39,8 @@ class PwNewsScrapyItem(scrapy.Item):
     news_date = scrapy.Field()
     news_category = scrapy.Field()
     news_content = scrapy.Field()
+
+class PwCategoryScrapyItem(scrapy.Item):
+    category_id = scrapy.Field()
+    category_name = scrapy.Field()
+    category_pw_url = scrapy.Field()
