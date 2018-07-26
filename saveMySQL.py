@@ -4,6 +4,7 @@ import pymysql
 import codecs
 import json
 import time
+import re
 
 def create_db(dbname):
     db = pymysql.connect(host='localhost', user='root', password='', port=3306, charset='utf8')
@@ -61,6 +62,7 @@ def save_pw_simple():
         apis = json.load(f)
         count = 1
         for api in apis:
+            api['api_desc'] = re.compile(r'<[^>]+>|\n|\r', re.S).sub('', api['api_desc']) # [^>]+ 不是^的任意字符
             if 'api_secondary_category' in api:
                 api['api_secondary_category'] = ",".join(api['api_secondary_category'])
             keys = ','.join(api.keys())
@@ -214,6 +216,7 @@ def save_pw_old():
         apis = json.load(f)
         count = 1
         for api in apis:
+            api['api_desc'] = re.compile(r'<[^>]+>|\n|\r', re.S).sub('', api['api_desc']) # [^>]+ 不是^的任意字符
             api_dict[api['api_name']] = api['api_id']
             # Map APIs to category
             if 'api_primary_category' in api:
@@ -367,9 +370,280 @@ def save_pw_old():
             if count % 1000 == 0:
                 print(count)
     
+def save_programmableweb_new():
+    db = pymysql.connect(host='localhost', user='root', password='', db='programmableweb_new', port=3306, charset='utf8')
+    cursor = db.cursor()
+    
+    # Set up Category, API Map
+    category_dict = {}
+    api_dict = {}
+
+    # Creating category table...
+    print("Creating category table...")
+    cursor.execute('DROP TABLE IF EXISTS category')
+    cursor.execute(
+        """CREATE TABLE category (
+            ID INT(11),
+            Name VARCHAR(200),
+            PwURL VARCHAR(255),
+            Amount INT(11))"""
+    )
+    with codecs.open('categorys.json', 'r', 'utf8') as f:
+        categorys = json.load(f)
+        count = 1
+        for category in categorys:
+            category_dict[category['category_name']] = category['category_id']
+            # Map new fields to old fields.
+            category['ID'] = category.pop('category_id')
+            category['Name'] = category.pop('category_name')
+            category['PwURL'] = category.pop('category_pw_url')
+            # Combine to sql and execute it.
+            keys = ','.join(category.keys())
+            values = ','.join(['%s'] * len(category))
+            sql = 'INSERT INTO category({keys}) VALUES({values})'.format(keys=keys, values=values)
+            try:
+                if cursor.execute(sql, tuple(category.values())):
+                    # print('insert successful')
+                    db.commit()
+            except Exception as e:
+                print(category['ID'] + "insert failed!", e)
+                db.rollback()
+            count += 1
+            if count % 1000 == 0:
+                print(count)
+    
+    # Creating apibasic, apicate table...
+    print("Creating apibasic, apicate table...")
+    cursor.execute('DROP TABLE IF EXISTS apibasic')
+    cursor.execute(
+        """CREATE TABLE apibasic (
+            ID INT(11),
+            Name VARCHAR(200),
+            PwURL VARCHAR(255),
+            Provider VARCHAR(100),
+            ProviderURL VARCHAR(255),
+            PorHomePage VARCHAR(300),
+            Endpoint VARCHAR(255),
+            Version VARCHAR(100),
+            Type INT(11),
+            ArchStyle INT(11),
+            IsDeviceSpec INT(11),
+            Scope INT(11),
+            Description TEXT)"""
+    )
+    cursor.execute('DROP TABLE IF EXISTS apicate')
+    cursor.execute(
+        """CREATE TABLE apicate (
+            ApiID INT(11),
+            CateID INT(11),
+            IsPri INT(11))"""
+    )
+    with codecs.open('apis.json', 'r', 'utf8') as f:
+        apis = json.load(f)
+        count = 1
+        for api in apis:
+            api['api_desc'] = re.compile(r'<[^>]+>|\n|\r', re.S).sub('', api['api_desc']) # [^>]+ 不是^的任意字符
+            api_dict[api['api_name']] = api['api_id']
+            # Map APIs to category
+            if 'api_primary_category' in api:
+                apicate = {}
+                apicate['ApiID'] = api['api_id']
+                apicate['CateID'] = category_dict[api['api_primary_category']]
+                apicate['IsPri'] = 1
+                keys = ','.join(apicate.keys())
+                values = ','.join(['%s'] * len(apicate))
+                sql = 'INSERT INTO apicate({keys}) VALUES({values})'.format(keys=keys, values=values)
+                try:
+                    if cursor.execute(sql, tuple(apicate.values())):
+                        db.commit()
+                except Exception as e:
+                    print(api['api_id'] + "insert failed!", e)
+                    db.rollback()
+                del api['api_primary_category']
+            if 'api_secondary_category' in api:
+                for c in api['api_secondary_category']:
+                    apicate = {}
+                    apicate['ApiID'] = api['api_id']
+                    apicate['CateID'] = category_dict[c]
+                    apicate['IsPri'] = 0
+                    keys = ','.join(apicate.keys())
+                    values = ','.join(['%s'] * len(apicate))
+                    sql = 'INSERT INTO apicate({keys}) VALUES({values})'.format(keys=keys, values=values)
+                    try:
+                        if cursor.execute(sql, tuple(apicate.values())):
+                            db.commit()
+                    except Exception as e:
+                        print(api['api_id'] + "insert failed!", e)
+                        db.rollback()
+                del api['api_secondary_category']
+            # Map new fields to old fields.
+            api['ID'] = api.pop('api_id')
+            api['Name'] = api.pop('api_name')
+            api['PwURL'] = api.pop('api_pw_url')
+            api['PorHomePage'] = api.pop('api_url')
+            api['Description'] = api.pop('api_desc')
+            # Combine to sql and execute it.
+            keys = ','.join(api.keys())
+            values = ','.join(['%s'] * len(api))
+            sql = 'INSERT INTO apibasic({keys}) VALUES({values})'.format(keys=keys, values=values)
+            try:
+                if cursor.execute(sql, tuple(api.values())):
+                    # print('insert successful')
+                    db.commit()
+            except Exception as e:
+                print(api['ID'] + "insert failed!", e)
+                db.rollback()
+            
+            count += 1
+            if count % 1000 == 0:
+                print(count)
+
+    # Creating mashup, mashupapi, mashupcate table...
+    print("Creating mashup, mashupapi, mashupcate table...")
+    cursor.execute('DROP TABLE IF EXISTS mashup')
+    cursor.execute(
+        """CREATE TABLE mashup (
+            ID INT(11),
+            Name VARCHAR(200),
+            PwURL VARCHAR(255),
+            Company VARCHAR(100),
+            URL VARCHAR(300),
+            Description TEXT,
+            Type INT(11))"""
+    )
+    cursor.execute('DROP TABLE IF EXISTS mashupapi')
+    cursor.execute(
+        """CREATE TABLE mashupapi (
+            MashupID INT(11),
+            ApiID INT(11))"""
+    )
+    cursor.execute('DROP TABLE IF EXISTS mashupcate')
+    cursor.execute(
+        """CREATE TABLE mashupcate (
+            MashupID INT(11),
+            CateID INT(11),
+            IsPri INT(11))"""
+    )
+    with codecs.open('mashups.json', 'r', 'utf8') as f:
+        mashups = json.load(f)
+        count = 1
+        for mashup in mashups:
+            # Map MASHUPs to category, the first cate is primary cate
+            if 'mashup_category' in mashup:
+                # The first cate is primary cate
+                mashupcate = {}
+                mashupcate['MashupID'] = mashup['mashup_id']
+                mashupcate['CateID'] = category_dict[mashup['mashup_category'][0]]
+                mashupcate['IsPri'] = 1
+                keys = ','.join(mashupcate.keys())
+                values = ','.join(['%s'] * len(mashupcate))
+                sql = 'INSERT INTO mashupcate({keys}) VALUES({values})'.format(keys=keys, values=values)
+                try:
+                    if cursor.execute(sql, tuple(mashupcate.values())):
+                        db.commit()
+                except Exception as e:
+                    print(mashup['mashup_id'] + "insert failed!", e)
+                    db.rollback()
+                # The others are not primary cate
+                for m in mashup['mashup_category'][1:]:
+                    mashupcate = {}
+                    mashupcate['MashupID'] = mashup['mashup_id']
+                    mashupcate['CateID'] = category_dict[m]
+                    mashupcate['IsPri'] = 0
+                    keys = ','.join(mashupcate.keys())
+                    values = ','.join(['%s'] * len(mashupcate))
+                    sql = 'INSERT INTO mashupcate({keys}) VALUES({values})'.format(keys=keys, values=values)
+                    try:
+                        if cursor.execute(sql, tuple(mashupcate.values())):
+                            db.commit()
+                    except Exception as e:
+                        print(mashup['mashup_id'] + "insert failed!", e)
+                        db.rollback()
+                del mashup['mashup_category']
+            if 'mashup_related_apis' in mashup:
+                for r in mashup['mashup_related_apis']:
+                    mashupapi = {}
+                    mashupapi['MashupID'] = mashup['mashup_id']
+                    if r in api_dict:
+                        mashupapi['ApiID'] = api_dict[r]
+                    else:
+                        mashupapi['ApiID'] = -1
+                    keys = ','.join(mashupapi.keys())
+                    values = ','.join(['%s'] * len(mashupapi))
+                    sql = 'INSERT INTO mashupapi({keys}) VALUES({values})'.format(keys=keys, values=values)
+                    try:
+                        if cursor.execute(sql, tuple(mashupapi.values())):
+                            db.commit()
+                    except Exception as e:
+                        print(mashup['mashup_id'] + "insert failed!", e)
+                        db.rollback()
+                del mashup['mashup_related_apis']
+            # Map new fields to old fields.
+            mashup['ID'] = mashup.pop('mashup_id')
+            mashup['Name'] = mashup.pop('mashup_name')
+            mashup['PwURL'] = mashup.pop('mashup_pw_url')
+            mashup['URL'] = mashup.pop('mashup_url')
+            mashup['Description'] = mashup.pop('mashup_desc')
+            # Combine to sql and execute it.
+            keys = ','.join(mashup.keys())
+            values = ','.join(['%s'] * len(mashup))
+            sql = 'INSERT INTO mashup({keys}) VALUES({values})'.format(keys=keys, values=values)
+            try:
+                if cursor.execute(sql, tuple(mashup.values())):
+                    db.commit()
+            except Exception as e:
+                print(mashup['ID'] + "insert failed!", e)
+                db.rollback()
+            count += 1
+            if count % 1000 == 0:
+                print(count)
+    cursor.execute('DROP TABLE IF EXISTS mashupsketch')
+    cursor.execute(
+        """CREATE TABLE mashupsketch (
+            Name VARCHAR(100),
+            PwURL VARCHAR(255),
+            Description VARCHAR(255),
+            CategoryName VARCHAR(100),
+            CategoryURL VARCHAR(255),
+            SubmitDate DATE)"""
+    )
+    cursor.execute('DROP TABLE IF EXISTS apisketch')
+    cursor.execute(
+        """CREATE TABLE apisketch (
+            Name VARCHAR(100),
+            PwURL VARCHAR(255),
+            Description VARCHAR(255),
+            CategoryName VARCHAR(100),
+            CategoryURL VARCHAR(255),
+            SubmitDate DATE)"""
+    )
+    cursor.execute('DROP TABLE IF EXISTS apiaddition')
+    cursor.execute(
+        """CREATE TABLE apiaddition (
+            ID	int(11),
+            DocsHomePage	varchar(255),
+            TwitterURL	varchar(255),
+            SupEmail	varchar(100),
+            Forum	varchar(255),
+            ConsoleURL	varchar(255),
+            TermURL	varchar(255),
+            DescFileURL	varchar(255),
+            DescFileType	int(11),
+            IsNonPrptry	int(11),
+            LiceType	varchar(100),
+            IsSslSup	int(11),
+            AuthModel	varchar(100),
+            ReqFmt	varchar(100),
+            IsHyperApi	int(11),
+            IsRstctAces	int(11),
+            IsUnoffical	int(11))"""
+    )
+    
 
 if __name__ == '__main__':
     create_db("pw_simple")
     save_pw_simple()
     create_db("pw_old")
     save_pw_old()
+    create_db("programmableweb_new")
+    save_programmableweb_new()
