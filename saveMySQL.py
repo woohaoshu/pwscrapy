@@ -217,6 +217,7 @@ def save_pw_old():
         count = 1
         for api in apis:
             api['api_desc'] = re.compile(r'<[^>]+>|\n|\r', re.S).sub('', api['api_desc']) # [^>]+ 不是^的任意字符
+            # api['api_desc'] = re.compile(r'\[[^\]]+\]', re.S).sub('', api['api_desc']) # 匹配[This API is no longer available.]
             api_dict[api['api_name']] = api['api_id']
             # Map APIs to category
             if 'api_primary_category' in api:
@@ -640,10 +641,42 @@ def save_programmableweb_new():
     )
     
 
+# This method is used to count and save the primary and secondary category number in table category
+def count_cate(dbname):
+    db = pymysql.connect(host='localhost', user='root', password='', db=dbname, port=3306, charset='utf8')
+    cursor = db.cursor()
+
+    # Add two new field
+    try:
+        cursor.execute("ALTER TABLE category DROP primary_num, DROP secondary_num")
+        print("Field primary_num and secondary_num have droped.")
+    except:
+        pass
+    sql = "ALTER TABLE category ADD primary_num int(11) Default 0, ADD secondary_num int(11) Default 0"
+    cursor.execute(sql)
+
+    sql = "SELECT ID FROM category"
+    cursor.execute(sql)
+    categorys_id = cursor.fetchall()
+    for cate_id in categorys_id:
+        sql = "SELECT COUNT(*) FROM apicate WHERE CateID={cate_id} AND IsPri=1".format(cate_id=cate_id[0])
+        cursor.execute(sql)
+        primary_num = cursor.fetchone()
+        sql = "SELECT COUNT(*) FROM apicate WHERE CateID={cate_id} AND IsPri=0".format(cate_id=cate_id[0])
+        cursor.execute(sql)
+        secondary_num = cursor.fetchone()
+        sql = "UPDATE category SET primary_num={primary_num}, secondary_num={secondary_num} WHERE ID={cate_id}".format(primary_num=primary_num[0], secondary_num=secondary_num[0], cate_id=cate_id[0])
+        cursor.execute(sql)
+
+    db.commit()
+    print("The number of category has successfully statistics completed.")
+
+
 if __name__ == '__main__':
     create_db("pw_simple")
     save_pw_simple()
     create_db("pw_old")
     save_pw_old()
+    # count_cate("pw_old")
     create_db("programmableweb_new")
     save_programmableweb_new()
