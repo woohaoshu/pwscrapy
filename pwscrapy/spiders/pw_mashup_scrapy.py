@@ -15,7 +15,7 @@ class pwscrapy(scrapy.spiders.Spider):
     ]
 
     def __init__(self):
-        self.page_count = 0
+        self.page_count = 1
         self.mashup_count = 0
         self.total_page_num = -1
 

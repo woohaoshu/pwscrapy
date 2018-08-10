@@ -17,23 +17,23 @@ def save_pw_simple():
     db = pymysql.connect(host='localhost', user='root', password='', db='pw_simple', port=3306, charset='utf8')
     cursor = db.cursor()
 
-    # Creating categorys table...
-    print("Creating categorys table...")
-    cursor.execute('DROP TABLE IF EXISTS categorys')
+    # Creating categories table...
+    print("Creating categories table...")
+    cursor.execute('DROP TABLE IF EXISTS categories')
     cursor.execute(
-        """CREATE TABLE categorys (
+        """CREATE TABLE categories (
             category_id INT(11),
             category_name VARCHAR(200),
             category_pw_url VARCHAR(255))"""
     )
-    with codecs.open('categorys.json', 'r', 'utf8') as f:
-        categorys = json.load(f)
+    with codecs.open('categories.json', 'r', 'utf8') as f:
+        categories = json.load(f)
         count = 1
-        for category in categorys:
+        for category in categories:
             # Combine to sql and execute it.
             keys = ','.join(category.keys())
             values = ','.join(['%s'] * len(category))
-            sql = 'INSERT INTO categorys({keys}) VALUES({values})'.format(keys=keys, values=values)
+            sql = 'INSERT INTO categories({keys}) VALUES({values})'.format(keys=keys, values=values)
             try:
                 if cursor.execute(sql, tuple(category.values())):
                     # print('insert successful')
@@ -63,8 +63,9 @@ def save_pw_simple():
         count = 1
         for api in apis:
             api['api_desc'] = re.compile(r'<[^>]+>|\n|\r', re.S).sub('', api['api_desc']) # [^>]+ 不是^的任意字符
+            api['api_desc'] = re.compile(r'\[[^\]]+\]', re.S).sub('', api['api_desc']) # 匹配[This API is no longer available.]
             if 'api_secondary_category' in api:
-                api['api_secondary_category'] = ",".join(api['api_secondary_category'])
+                api['api_secondary_category'] = ",".join(list(set(api['api_secondary_category']))) # 将二级标签去重
             keys = ','.join(api.keys())
             values = ','.join(['%s'] * len(api))
             sql = 'INSERT INTO APIS({keys}) VALUES({values})'.format(keys=keys, values=values)
@@ -170,10 +171,10 @@ def save_pw_old():
             Name VARCHAR(200),
             PwURL VARCHAR(255))"""
     )
-    with codecs.open('categorys.json', 'r', 'utf8') as f:
-        categorys = json.load(f)
+    with codecs.open('categories.json', 'r', 'utf8') as f:
+        categories = json.load(f)
         count = 1
-        for category in categorys:
+        for category in categories:
             category_dict[category['category_name']] = category['category_id']
             # Map new fields to old fields.
             category['ID'] = category.pop('category_id')
@@ -217,7 +218,7 @@ def save_pw_old():
         count = 1
         for api in apis:
             api['api_desc'] = re.compile(r'<[^>]+>|\n|\r', re.S).sub('', api['api_desc']) # [^>]+ 不是^的任意字符
-            # api['api_desc'] = re.compile(r'\[[^\]]+\]', re.S).sub('', api['api_desc']) # 匹配[This API is no longer available.]
+            api['api_desc'] = re.compile(r'\[[^\]]+\]', re.S).sub('', api['api_desc']) # 匹配[This API is no longer available.]
             api_dict[api['api_name']] = api['api_id']
             # Map APIs to category
             if 'api_primary_category' in api:
@@ -389,10 +390,10 @@ def save_programmableweb_new():
             PwURL VARCHAR(255),
             Amount INT(11))"""
     )
-    with codecs.open('categorys.json', 'r', 'utf8') as f:
-        categorys = json.load(f)
+    with codecs.open('categories.json', 'r', 'utf8') as f:
+        categories = json.load(f)
         count = 1
-        for category in categorys:
+        for category in categories:
             category_dict[category['category_name']] = category['category_id']
             # Map new fields to old fields.
             category['ID'] = category.pop('category_id')
@@ -657,8 +658,8 @@ def count_cate(dbname):
 
     sql = "SELECT ID FROM category"
     cursor.execute(sql)
-    categorys_id = cursor.fetchall()
-    for cate_id in categorys_id:
+    categories_id = cursor.fetchall()
+    for cate_id in categories_id:
         sql = "SELECT COUNT(*) FROM apicate WHERE CateID={cate_id} AND IsPri=1".format(cate_id=cate_id[0])
         cursor.execute(sql)
         primary_num = cursor.fetchone()
@@ -671,12 +672,43 @@ def count_cate(dbname):
     db.commit()
     print("The number of category has successfully statistics completed.")
 
+def count_cate2(dbname):
+    db = pymysql.connect(host='localhost', user='root', password='', db=dbname, port=3306, charset='utf8')
+    cursor = db.cursor()
+    db2 = pymysql.connect(host='localhost', user='root', password='', db='pw_old', port=3306, charset='utf8')
+    cursor2 = db2.cursor()
+
+    # Add two new field
+    try:
+        cursor.execute("ALTER TABLE categories DROP primary_num, DROP secondary_num")
+        print("Field primary_num and secondary_num have droped.")
+    except:
+        pass
+    sql = "ALTER TABLE categories ADD primary_num int(11) Default 0, ADD secondary_num int(11) Default 0"
+    cursor.execute(sql)
+
+    sql = "SELECT category_id FROM categories"
+    cursor.execute(sql)
+    categories_id = cursor.fetchall()
+    for cate_id in categories_id:
+        sql = "SELECT COUNT(*) FROM apicate WHERE CateID={cate_id} AND IsPri=1".format(cate_id=cate_id[0])
+        cursor2.execute(sql)
+        primary_num = cursor2.fetchone()
+        sql = "SELECT COUNT(*) FROM apicate WHERE CateID={cate_id} AND IsPri=0".format(cate_id=cate_id[0])
+        cursor2.execute(sql)
+        secondary_num = cursor2.fetchone()
+        sql = "UPDATE categories SET primary_num={primary_num}, secondary_num={secondary_num} WHERE category_id={cate_id}".format(primary_num=primary_num[0], secondary_num=secondary_num[0], cate_id=cate_id[0])
+        cursor.execute(sql)
+
+    db.commit()
+    print("The number of category has successfully statistics completed.")
 
 if __name__ == '__main__':
     create_db("pw_simple")
     save_pw_simple()
     create_db("pw_old")
     save_pw_old()
-    # count_cate("pw_old")
+    count_cate("pw_old")
+    count_cate2("pw_simple")
     create_db("programmableweb_new")
     save_programmableweb_new()

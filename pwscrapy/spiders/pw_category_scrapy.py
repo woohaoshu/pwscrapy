@@ -7,7 +7,7 @@ from pwscrapy.items import PwCategoryScrapyItem
 SITE_URL = "https://www.programmableweb.com"
 
 class pwscrapy(scrapy.spiders.Spider):
-    # scrapy crawl pwc -o categorys.json
+    # scrapy crawl pwc -o categories.json
     # scrapy crawl pwc -s LOG_FILE=spider.log
     name = "pwc"
     # allowed_domains = ["programmableweb.com"] # 不必须，可选
@@ -16,7 +16,7 @@ class pwscrapy(scrapy.spiders.Spider):
     ]
 
     def __init__(self):
-        self.page_count = 0
+        self.page_count = 1
         self.category_count = 0
         self.total_page_num = -1
 
